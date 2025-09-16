@@ -142,6 +142,20 @@ export default function AdvancedGames() {
       color: "from-teal-500 to-emerald-500",
       gameType: "memory",
     },
+    {
+      id: 8,
+      title: "Spin Wheel Challenge",
+      subject: "Mixed",
+      grade: "6-12",
+      difficulty: "Random",
+      duration: "Endless",
+      players: 1200,
+      rating: 4.8,
+      description: "Spin the wheel for random questions across subjects!",
+      icon: "🎡",
+      color: "from-gray-500 to-gray-700",
+      gameType: "spin",
+    },
   ]
 
   const generateNextQuestion = async () => {
@@ -173,7 +187,7 @@ export default function AdvancedGames() {
           ...prev,
           data.questions[0].question?.substring(0, 50) || Math.random().toString(),
         ])
-        setTimeLeft(Math.max(30, 60 - currentLevel * 2)) // Decrease time as level increases
+        setTimeLeft(Math.max(30, 60 - currentLevel * 2))
         setGameState("playing")
       } else {
         throw new Error("No questions received")
@@ -424,6 +438,9 @@ export default function AdvancedGames() {
   }
 
   const handleSpinWheelAnswer = async (selectedAnswer: string, question: any, isBonus: boolean) => {
+    if (isAnswering) return
+
+    setIsAnswering(true)
     try {
       const response = await fetch("/api/games/spin-wheel", {
         method: "POST",
@@ -436,19 +453,30 @@ export default function AdvancedGames() {
       const data = await response.json()
 
       if (data.isCorrect) {
-        setScore(score + data.points)
-        setStreak(streak + 1)
-      } else {
-        setStreak(0)
-      }
-      setSpinResult(null)
-    } catch (error) {
-      console.error("Failed to validate spin wheel answer:", error)
-      if (selectedAnswer === question.answer) {
         setScore(score + (isBonus ? 20 : 10))
         setStreak(streak + 1)
       } else {
         setStreak(0)
+        setLives(lives - 1)
+        if (lives <= 1) {
+          setGameState("completed")
+        }
+      }
+      setSpinResult(null)
+      setIsAnswering(false)
+    } catch (error) {
+      console.error("Failed to validate spin wheel answer:", error)
+      setIsAnswering(false)
+      const isCorrect = selectedAnswer.toLowerCase() === question.answer.toLowerCase()
+      if (isCorrect) {
+        setScore(score + (isBonus ? 20 : 10))
+        setStreak(streak + 1)
+      } else {
+        setStreak(0)
+        setLives(lives - 1)
+        if (lives <= 1) {
+          setGameState("completed")
+        }
       }
       setSpinResult(null)
     }
@@ -590,7 +618,7 @@ export default function AdvancedGames() {
   }
 
   const handleSpin = async () => {
-    if (isSpinning) return
+    if (isSpinning || !selectedGame) return
 
     setIsSpinning(true)
     const randomAngle = Math.random() * 360 + 1440
@@ -639,6 +667,10 @@ export default function AdvancedGames() {
       setTimeout(() => {
         initializeSpeedMath(currentLevel, selectedGame.difficulty)
       }, 1500)
+    } else if (selectedGame?.gameType === "spin") {
+      setTimeout(() => {
+        handleSpin()
+      }, 1500)
     } else {
       setTimeout(() => {
         generateNextQuestion()
@@ -664,6 +696,8 @@ export default function AdvancedGames() {
       await initializeWordGame(game.subject, game.difficulty)
     } else if (game.gameType === "speed") {
       await initializeSpeedMath(1, game.difficulty)
+    } else if (game.gameType === "spin") {
+      await handleSpin()
     } else {
       await generateNextQuestion()
     }
@@ -706,7 +740,7 @@ export default function AdvancedGames() {
         <Card className="text-center p-8">
           <CardContent>
             <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-600" />
-            <h3 className="text-xl font-semibold mb-2">Generating Level {currentLevel} Question...</h3>
+            <h3 className="text-xl font-semibold mb-2">Generating Level {currentLevel} Challenge...</h3>
             <p className="text-gray-600">Creating personalized content for endless learning!</p>
           </CardContent>
         </Card>
@@ -987,7 +1021,7 @@ export default function AdvancedGames() {
                 variant="secondary"
                 disabled={currentStepIndex >= currentExperiment.steps.length - 1}
               >
-                Skip Step
+                Skip               Step
               </Button>
             </div>
           </CardContent>
@@ -1441,17 +1475,17 @@ export default function AdvancedGames() {
     )
   }
 
-  if (gameState === "playing" && spinResult) {
+  if (gameState === "playing" && selectedGame?.gameType === "spin" && spinResult) {
     return (
       <div className="max-w-4xl mx-auto p-4">
         <Card className="mb-6">
           <CardHeader>
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center space-x-3">
-                <span className="text-3xl">🎡</span>
+                <span className="text-3xl">{selectedGame.icon}</span>
                 <div>
-                  <CardTitle className="text-lg sm:text-xl">Spin Wheel Challenge</CardTitle>
-                  <CardDescription>Answer the random question!</CardDescription>
+                  <CardTitle className="text-lg sm:text-xl">{selectedGame.title}</CardTitle>
+                  <CardDescription>Level {currentLevel} • Endless Mode</CardDescription>
                 </div>
               </div>
               <div className="flex items-center space-x-4">
@@ -1463,15 +1497,19 @@ export default function AdvancedGames() {
                   <div className="text-xl sm:text-2xl font-bold text-blue-600">{streak}</div>
                   <div className="text-xs text-gray-500">Streak</div>
                 </div>
+                <div className="text-center">
+                  <div className="text-xl sm:text-2xl font-bold text-red-600">{lives}</div>
+                  <div className="text-xs text-gray-500">Lives</div>
+                </div>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-                        <div className="mb-4">
+            <div className="mb-4">
               <Progress value={50} className="h-2" /> {/* Static progress for demo */}
             </div>
 
-            <div className="bg-gradient-to-r from-gray-500 to-gray-700 rounded-lg p-6 sm:p-8 mb-6 text-white">
+            <div className={`bg-gradient-to-r ${selectedGame.color} rounded-lg p-6 sm:p-8 mb-6 text-white`}>
               <div className="text-center mb-6">
                 <Badge variant="secondary" className="mb-2">
                   {spinResult.section.subject}
