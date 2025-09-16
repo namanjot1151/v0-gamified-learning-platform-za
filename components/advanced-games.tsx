@@ -128,6 +128,20 @@ export default function AdvancedGames() {
       color: "from-indigo-500 to-purple-500",
       gameType: "coding",
     },
+    {
+      id: 7,
+      title: "Memory Match Challenge",
+      subject: "Science",
+      grade: "6-10",
+      difficulty: "Interactive",
+      duration: "Endless",
+      players: 1500,
+      rating: 4.7,
+      description: "Match science terms with their definitions!",
+      icon: "🧠",
+      color: "from-teal-500 to-emerald-500",
+      gameType: "memory",
+    },
   ]
 
   const generateNextQuestion = async () => {
@@ -135,7 +149,7 @@ export default function AdvancedGames() {
 
     setGameState("loading")
     try {
-      const response = await fetch("/app/api/games/endless", {
+      const response = await fetch("/api/games/endless", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -198,6 +212,12 @@ export default function AdvancedGames() {
           options: ["Saves file", "Displays output", "Creates variable", "Deletes data"],
           explanation: "The print() function displays output to the console.",
         },
+        speed: {
+          question: `Level ${currentLevel} Math Challenge: What is 15 + 27?`,
+          answer: "42",
+          options: ["39", "42", "45", "48"],
+          explanation: "15 + 27 = 42.",
+        },
       }
 
       const fallback =
@@ -209,7 +229,6 @@ export default function AdvancedGames() {
       })
       setGameState("playing")
 
-      // Show user-friendly error message
       setTimeout(() => {
         console.log("[v0] Using offline questions due to server load")
       }, 100)
@@ -242,7 +261,6 @@ export default function AdvancedGames() {
         setStreak(streak + 1)
         setCurrentLevel(currentLevel + 1)
 
-        // Generate next question after short delay
         setTimeout(() => {
           generateNextQuestion()
           setIsAnswering(false)
@@ -255,7 +273,6 @@ export default function AdvancedGames() {
         if (lives <= 1) {
           setGameState("completed")
         } else {
-          // Generate new question on wrong answer
           setTimeout(() => {
             generateNextQuestion()
           }, 1500)
@@ -264,7 +281,6 @@ export default function AdvancedGames() {
     } catch (error) {
       console.error("Failed to validate answer:", error)
       setIsAnswering(false)
-      // Fallback validation
       const isCorrect = selectedAnswer.toLowerCase() === currentQuestion.answer.toLowerCase()
       if (isCorrect) {
         setScore(score + (10 + currentLevel * 5))
@@ -290,30 +306,12 @@ export default function AdvancedGames() {
         setTimeLeft(timeLeft - 1)
       }, 1000)
     } else if (gameState === "playing" && timeLeft === 0) {
-      // Time up - treat as wrong answer
-      setLives(lives - 1)
-      setStreak(0)
-      if (lives <= 1) {
-        setGameState("completed")
-      } else {
-        generateNextQuestion()
-      }
+      handleTimeUp()
     }
     return () => clearTimeout(timer)
   }, [gameState, timeLeft, lives])
 
-  // Timer effect for speed games
-  // useEffect(() => {
-  //   let timer: NodeJS.Timeout
-  //   if (gameState === "playing" && timeLeft > 0 && selectedGame?.gameType === "speed") {
-  //     timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000)
-  //   } else if (timeLeft === 0 && gameState === "playing" && selectedGame?.gameType === "speed") {
-  //     handleTimeUp()
-  //   }
-  //   return () => clearTimeout(timer)
-  // }, [timeLeft, gameState])
-
-  const initializeMemoryGame = async (subject: string, difficulty: string) => {
+  const initializeMemoryGame = async (subject: string = "Science", difficulty: string = "Medium") => {
     setGameState("loading")
     try {
       const response = await fetch("/api/games/memory", {
@@ -333,7 +331,6 @@ export default function AdvancedGames() {
       setGameState("playing")
     } catch (error) {
       console.error("Failed to initialize memory game:", error)
-      // Fallback to static cards
       const fallbackCards = [
         { id: 1, content: "H₂O", match: "Water" },
         { id: 2, content: "Water", match: "H₂O" },
@@ -342,6 +339,37 @@ export default function AdvancedGames() {
       ]
       setMemoryCards(fallbackCards)
       setGameState("playing")
+    }
+  }
+
+  const handleCardFlip = (cardIndex: number) => {
+    if (flippedCards.length === 2 || flippedCards.includes(cardIndex) || matchedCards.includes(cardIndex)) return
+
+    const newFlippedCards = [...flippedCards, cardIndex]
+    setFlippedCards(newFlippedCards)
+
+    if (newFlippedCards.length === 2) {
+      setMoves(moves + 1)
+      const [firstIndex, secondIndex] = newFlippedCards
+      const firstCard = memoryCards[firstIndex]
+      const secondCard = memoryCards[secondIndex]
+
+      if (firstCard.content === secondCard.match || firstCard.match === secondCard.content) {
+        setTimeout(() => {
+          setMatchedCards([...matchedCards, firstIndex, secondIndex])
+          setFlippedCards([])
+          setScore(score + 10)
+          setStreak(streak + 1)
+          if (matchedCards.length + 2 === memoryCards.length) setGameState("completed")
+        }, 1000)
+      } else {
+        setTimeout(() => {
+          setFlippedCards([])
+          setStreak(0)
+          setLives(lives - 1)
+          if (lives <= 1) setGameState("completed")
+        }, 1000)
+      }
     }
   }
 
@@ -362,7 +390,6 @@ export default function AdvancedGames() {
       setGameState("playing")
     } catch (error) {
       console.error("Failed to initialize word game:", error)
-      // Fallback words
       const fallbackWords = [
         { word: "EDUCATION", scrambled: "NOITACUDE", hint: "Learning process" },
         { word: "KNOWLEDGE", scrambled: "EGDELWONK", hint: "Information and skills" },
@@ -390,42 +417,9 @@ export default function AdvancedGames() {
       setGameState("playing")
     } catch (error) {
       console.error("Failed to initialize speed math:", error)
-      // Fallback question
       setCurrentQuestion({ question: "15 + 27 = ?", answer: "42", timeLimit: 30 })
       setTimeLeft(30)
       setGameState("playing")
-    }
-  }
-
-  const handleCardFlip = async (cardIndex: number) => {
-    if (flippedCards.length === 2 || flippedCards.includes(cardIndex) || matchedCards.includes(cardIndex)) {
-      return
-    }
-
-    const newFlippedCards = [...flippedCards, cardIndex]
-    setFlippedCards(newFlippedCards)
-
-    if (newFlippedCards.length === 2) {
-      setMoves(moves + 1)
-      const [firstIndex, secondIndex] = newFlippedCards
-      const firstCard = memoryCards[firstIndex]
-      const secondCard = memoryCards[secondIndex]
-
-      if (firstCard.content === secondCard.match || firstCard.match === secondCard.content) {
-        // Match found
-        setTimeout(() => {
-          setMatchedCards([...matchedCards, firstIndex, secondIndex])
-          setFlippedCards([])
-          setScore(score + 10)
-          setStreak(streak + 1)
-        }, 1000)
-      } else {
-        // No match
-        setTimeout(() => {
-          setFlippedCards([])
-          setStreak(0)
-        }, 1000)
-      }
     }
   }
 
@@ -450,7 +444,6 @@ export default function AdvancedGames() {
       setSpinResult(null)
     } catch (error) {
       console.error("Failed to validate spin wheel answer:", error)
-      // Fallback validation
       if (selectedAnswer === question.answer) {
         setScore(score + (isBonus ? 20 : 10))
         setStreak(streak + 1)
@@ -498,7 +491,6 @@ export default function AdvancedGames() {
       }
     } catch (error) {
       console.error("Failed to check word answer:", error)
-      // Fallback validation
       if (userAnswer.toLowerCase().trim() === currentWordSet[currentWordIndex].word.toLowerCase()) {
         setScore(score + 15)
         setStreak(streak + 1)
@@ -544,7 +536,6 @@ export default function AdvancedGames() {
         setScore(score + data.points)
         setStreak(streak + 1)
 
-        // Generate next problem
         await initializeSpeedMath(currentLevel + 1, selectedGame.difficulty)
         setCurrentLevel(currentLevel + 1)
       } else {
@@ -557,9 +548,8 @@ export default function AdvancedGames() {
       setUserAnswer("")
     } catch (error) {
       console.error("Failed to check math answer:", error)
-      // Fallback validation
       if (Number.parseFloat(userAnswer) === Number.parseFloat(currentQuestion.answer)) {
-        setScore(score + 10 + Math.floor(timeLeft / 2))
+        setScore(score + 10 + Math.floor(timeSpent / 2))
         setStreak(streak + 1)
         setCurrentLevel(currentLevel + 1)
       } else {
@@ -599,22 +589,6 @@ export default function AdvancedGames() {
     }
   }
 
-  const handlePlayGame = async (game: any) => {
-    setSelectedGame(game)
-    setCurrentLevel(1)
-    setScore(0)
-    setStreak(0)
-    setLives(3)
-    setUserAnswer("")
-    setGameStartTime(new Date())
-    setUsedQuestionIds([])
-    setCurrentQuestion(null)
-    setIsAnswering(false)
-
-    // Start with first question
-    await generateNextQuestion()
-  }
-
   const handleSpin = async () => {
     if (isSpinning) return
 
@@ -646,7 +620,6 @@ export default function AdvancedGames() {
       }, 3000)
     } catch (error) {
       console.error("Failed to generate spin questions:", error)
-      // Fallback question
       setTimeout(() => {
         setSpinResult({
           section: { subject: "Math" },
@@ -659,11 +632,40 @@ export default function AdvancedGames() {
 
   const handleTimeUp = () => {
     setLives(lives - 1)
+    setStreak(0)
     if (lives <= 1) {
       setGameState("completed")
+    } else if (selectedGame?.gameType === "speed") {
+      setTimeout(() => {
+        initializeSpeedMath(currentLevel, selectedGame.difficulty)
+      }, 1500)
     } else {
-      setTimeLeft(currentQuestion?.timeLimit || 30)
-      setUserAnswer("")
+      setTimeout(() => {
+        generateNextQuestion()
+      }, 1500)
+    }
+  }
+
+  const handlePlayGame = async (game: any) => {
+    setSelectedGame(game)
+    setCurrentLevel(1)
+    setScore(0)
+    setStreak(0)
+    setLives(3)
+    setUserAnswer("")
+    setGameStartTime(new Date())
+    setUsedQuestionIds([])
+    setCurrentQuestion(null)
+    setIsAnswering(false)
+
+    if (game.gameType === "memory") {
+      await initializeMemoryGame(game.subject, game.difficulty)
+    } else if (game.gameType === "puzzle") {
+      await initializeWordGame(game.subject, game.difficulty)
+    } else if (game.gameType === "speed") {
+      await initializeSpeedMath(1, game.difficulty)
+    } else {
+      await generateNextQuestion()
     }
   }
 
@@ -712,7 +714,7 @@ export default function AdvancedGames() {
     )
   }
 
-  if (gameState === "playing" && selectedGame && currentQuestion) {
+  if (gameState === "playing" && selectedGame?.gameType === "speed" && currentQuestion) {
     return (
       <div className="max-w-4xl mx-auto p-4">
         <Card className="mb-6">
@@ -759,20 +761,19 @@ export default function AdvancedGames() {
                 {currentQuestion.explanation && <p className="text-sm opacity-90">{currentQuestion.explanation}</p>}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {currentQuestion.options?.map((option: string, index: number) => (
-                  <Button
-                    key={index}
-                    variant="secondary"
-                    className="h-auto p-4 text-left bg-white/20 hover:bg-white/30 text-white border-white/30"
-                    onClick={() => handleAnswerSubmit(option)}
-                    disabled={isAnswering}
-                  >
-                    <span className="font-medium">{String.fromCharCode(65 + index)}.</span>
-                    <span className="ml-2">{option}</span>
-                  </Button>
-                ))}
-              </div>
+              <Input
+                type="text"
+                placeholder="Enter your answer..."
+                value={userAnswer}
+                onChange={(e) => setUserAnswer(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === "Enter") handleMathSubmit()
+                }}
+                className="w-full mb-4 p-2 text-black"
+              />
+              <Button onClick={handleMathSubmit} disabled={isAnswering} className="w-full">
+                Submit
+              </Button>
 
               {isAnswering && (
                 <div className="text-center mt-4">
@@ -944,90 +945,119 @@ export default function AdvancedGames() {
                   <div className="text-4xl font-bold mb-4 text-purple-600 tracking-wider">
                     {currentPuzzle.scrambled}
                   </div>
-                  <p className="text-gray-600 mb-6">Hint: {currentPuzzle.clue}</p>
+                  <p className="text-gray-600 mb-6">Hint: {showHint ? currentPuzzle.hint : "Click 'Hint' to reveal"}</p>
                   <Input
                     type="text"
                     placeholder="Enter the unscrambled word..."
                     value={userAnswer}
                     onChange={(e) => setUserAnswer(e.target.value)}
                     onKeyPress={(e) => {
-                      if (e.key === "Enter") {
-                        const isCorrect = userAnswer.toLowerCase() === currentPuzzle.word.toLowerCase()
-                        if (isCorrect) {
-                          setScore(score + 15)
-                          setStreak(streak + 1)
-                          setUserAnswer("")
-                          if (currentPuzzleIndex < selectedGame.puzzles.length - 1) {
-                            setCurrentPuzzleIndex(currentPuzzleIndex + 1)
-                          } else {
-                            setGameState("completed")
-                          }
-                        } else {
-                          setStreak(0)
-                          setLives(Math.max(0, lives - 1))
-                          if (lives <= 1) setGameState("completed")
-                        }
-                      }
+                      if (e.key === "Enter") handleWordSubmit()
                     }}
-                    className="text-center text-xl py-3 max-w-md mx-auto"
-                    autoFocus
+                    className="w-full mb-4 p-2 text-black"
                   />
-                </div>
-              )}
-
-              {(currentPuzzle?.type === "synonym" || currentPuzzle?.type === "grammar") && (
-                <div className="text-center">
-                  <h3 className="text-2xl font-bold mb-4 text-gray-800">
-                    {currentPuzzle.type === "synonym"
-                      ? `Find the synonym for: ${currentPuzzle.word}`
-                      : "Complete the sentence:"}
-                  </h3>
-                  {currentPuzzle.sentence && <div className="text-xl mb-6 text-gray-700">{currentPuzzle.sentence}</div>}
-                  <div className="grid grid-cols-2 gap-3 max-w-md mx-auto">
-                    {currentPuzzle.options?.map((option: string, index: number) => (
-                      <Button
-                        key={index}
-                        variant="outline"
-                        className="h-auto p-4 text-left bg-transparent hover:bg-purple-50"
-                        onClick={() => {
-                          const isCorrect = option === currentPuzzle.correct
-                          if (isCorrect) {
-                            setScore(score + 10)
-                            setStreak(streak + 1)
-                            if (currentPuzzleIndex < selectedGame.puzzles.length - 1) {
-                              setCurrentPuzzleIndex(currentPuzzleIndex + 1)
-                            } else {
-                              setGameState("completed")
-                            }
-                          } else {
-                            setStreak(0)
-                            setLives(Math.max(0, lives - 1))
-                            if (lives <= 1) setGameState("completed")
-                          }
-                        }}
-                      >
-                        {option}
-                      </Button>
-                    ))}
-                  </div>
+                  <Button onClick={handleWordSubmit} className="w-full mb-2">
+                    Submit
+                  </Button>
+                  <Button variant="outline" onClick={getWordHint} className="w-full">
+                    Hint
+                  </Button>
                 </div>
               )}
             </div>
 
-            <div className="flex justify-between">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+              <div className="flex items-center space-x-4">
+                <Badge variant="outline" className="flex items-center space-x-1">
+                  <Target className="h-3 w-3" />
+                  <span>Puzzle {currentPuzzleIndex + 1}</span>
+                </Badge>
+                <Badge variant="outline" className="flex items-center space-x-1">
+                  <Zap className="h-3 w-3" />
+                  <span>{streak} Streak</span>
+                </Badge>
+              </div>
               <Button variant="outline" onClick={resetGame}>
-                Exit Adventure
+                End Game
               </Button>
-              <Button
-                onClick={() => {
-                  if (currentPuzzleIndex < selectedGame.puzzles.length - 1) {
-                    setCurrentPuzzleIndex(currentPuzzleIndex + 1)
-                  }
-                }}
-                variant="secondary"
-                disabled={currentPuzzleIndex >= selectedGame.puzzles.length - 1}
-              >
-                Skip Puzzle
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (gameState === "playing" && selectedGame?.gameType === "memory") {
+    const progress = memoryCards.length > 0 ? (matchedCards.length / memoryCards.length) * 100 : 0
+
+    return (
+      <div className="max-w-4xl mx-auto p-4">
+        <Card className="mb-6">
+          <CardHeader>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center space-x-3">
+                <span className="text-3xl">{selectedGame.icon}</span>
+                <div>
+                  <CardTitle className="text-lg sm:text-xl">{selectedGame.title}</CardTitle>
+                  <CardDescription>Match {memoryCards.length / 2} Pairs</CardDescription>
+                </div>
+              </div>
+              <div className="flex items-center space-x-4">
+                <div className="text-center">
+                  <div className="text-xl sm:text-2xl font-bold text-green-600">{score}</div>
+                  <div className="text-xs text-gray-500">Score</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xl sm:text-2xl font-bold text-blue-600">{streak}</div>
+                  <div className="text-xs text-gray-500">Streak</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xl sm:text-2xl font-bold text-red-600">{lives}</div>
+                  <div className="text-xs text-gray-500">Lives</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xl sm:text-2xl font-bold text-teal-600">{moves}</div>
+                  <div className="text-xs text-gray-500">Moves</div>
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Progress value={progress} className="mb-6" />
+
+            <div className={`bg-gradient-to-r ${selectedGame.color} rounded-lg p-6 sm:p-8 mb-6 text-white`}>
+              <div className="grid grid-cols-4 gap-4">
+                {memoryCards.map((card, index) => (
+                  <Button
+                    key={index}
+                    variant="secondary"
+                    className={`h-24 w-full flex items-center justify-center text-lg font-bold ${
+                      flippedCards.includes(index) || matchedCards.includes(index)
+                        ? "bg-white/30"
+                        : "bg-white/10 hover:bg-white/20"
+                    } ${matchedCards.includes(index) ? "opacity-50" : ""}`}
+                    onClick={() => handleCardFlip(index)}
+                    disabled={flippedCards.length === 2 || matchedCards.length === memoryCards.length}
+                  >
+                    {(flippedCards.includes(index) || matchedCards.includes(index)) ? card.content : "❓"}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+              <div className="flex items-center space-x-4">
+                <Badge variant="outline" className="flex items-center space-x-1">
+                  <Target className="h-3 w-3" />
+                  <span>{matchedCards.length / 2} / {memoryCards.length / 2} Pairs</span>
+                </Badge>
+                <Badge variant="outline" className="flex items-center space-x-1">
+                  <Zap className="h-3 w-3" />
+                  <span>{streak} Streak</span>
+                </Badge>
+              </div>
+              <Button variant="outline" onClick={resetGame}>
+                End Game
               </Button>
             </div>
           </CardContent>
@@ -1051,7 +1081,7 @@ export default function AdvancedGames() {
                 <div>
                   <CardTitle>{selectedGame.title}</CardTitle>
                   <CardDescription>
-                    {currentMystery?.era} - Clue {currentClueIndex + 1} of {currentMystery?.clues.length}
+                    {currentMystery?.title} - Clue {currentClueIndex + 1} of {currentMystery?.clues.length}
                   </CardDescription>
                 </div>
               </div>
@@ -1072,50 +1102,47 @@ export default function AdvancedGames() {
 
             <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-8 mb-6">
               <div className="text-center mb-6">
-                <h3 className="text-2xl font-bold mb-2 text-gray-800">{currentMystery?.mystery}</h3>
-                <p className="text-lg text-amber-700 mb-4">Era: {currentMystery?.era}</p>
+                <h3 className="text-2xl font-bold mb-2 text-gray-800">{currentMystery?.title}</h3>
+                <p className="text-gray-600 mb-4">{currentClue?.description}</p>
               </div>
 
-              {currentClue && (
-                <div className="bg-white rounded-lg p-6 shadow-sm">
-                  <h4 className="text-xl font-semibold mb-4 text-center">{currentClue.clue}</h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    {currentClue.options.map((option: string, index: number) => (
-                      <Button
-                        key={index}
-                        variant="outline"
-                        className="h-auto p-4 text-left bg-transparent hover:bg-amber-50"
-                        onClick={() => {
-                          const isCorrect = option.toLowerCase() === currentClue.answer.toLowerCase()
-                          if (isCorrect) {
-                            setScore(score + 20)
-                            setStreak(streak + 1)
-                            if (currentClueIndex < currentMystery.clues.length - 1) {
-                              setCurrentClueIndex(currentClueIndex + 1)
-                            } else if (currentMysteryIndex < selectedGame.mysteries.length - 1) {
-                              setCurrentMysteryIndex(currentMysteryIndex + 1)
-                              setCurrentClueIndex(0)
-                            } else {
-                              setGameState("completed")
-                            }
-                          } else {
-                            setStreak(0)
-                            setLives(Math.max(0, lives - 1))
-                            if (lives <= 1) setGameState("completed")
-                          }
-                        }}
-                      >
-                        {option}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {currentClue?.options.map((option: string, index: number) => (
+                  <Button
+                    key={index}
+                    variant="outline"
+                    className="h-auto p-4 text-left bg-transparent hover:bg-amber-50"
+                    onClick={() => {
+                      const isCorrect = option.toLowerCase() === currentClue.answer.toLowerCase()
+                      if (isCorrect) {
+                        setScore(score + 10)
+                        setStreak(streak + 1)
+                        if (currentClueIndex < currentMystery.clues.length - 1) {
+                          setCurrentClueIndex(currentClueIndex + 1)
+                        } else if (currentMysteryIndex < selectedGame.mysteries.length - 1) {
+                          setCurrentMysteryIndex(currentMysteryIndex + 1)
+                          setCurrentClueIndex(0)
+                        } else {
+                          setGameState("completed")
+                        }
+                      } else {
+                        setStreak(0)
+                        setLives(Math.max(0, lives - 1))
+                        if (lives <= 1) {
+                          setGameState("completed")
+                        }
+                      }
+                    }}
+                  >
+                    {option}
+                  </Button>
+                ))}
+              </div>
             </div>
 
             <div className="flex justify-between">
               <Button variant="outline" onClick={resetGame}>
-                Exit Investigation
+                End Mission
               </Button>
               <Button
                 onClick={() => {
@@ -1126,7 +1153,7 @@ export default function AdvancedGames() {
                 variant="secondary"
                 disabled={currentClueIndex >= currentMystery.clues.length - 1}
               >
-                Skip Clue
+                Next Clue
               </Button>
             </div>
           </CardContent>
@@ -1171,51 +1198,47 @@ export default function AdvancedGames() {
 
             <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg p-8 mb-6">
               <div className="text-center mb-6">
-                <h3 className="text-2xl font-bold mb-2 text-gray-800">Exploring: {currentRegion?.name}</h3>
+                <h3 className="text-2xl font-bold mb-2 text-gray-800">{currentChallenge?.title}</h3>
+                <p className="text-gray-600 mb-4">{currentChallenge?.description}</p>
               </div>
 
-              {currentChallenge && (
-                <div className="bg-white rounded-lg p-6 shadow-sm">
-                  <h4 className="text-xl font-semibold mb-4 text-center">
-                    What is the capital of {currentChallenge.country}?
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    {currentChallenge.options.map((option: string, index: number) => (
-                      <Button
-                        key={index}
-                        variant="outline"
-                        className="h-auto p-4 text-left bg-transparent hover:bg-blue-50"
-                        onClick={() => {
-                          const isCorrect = option === currentChallenge.capital
-                          if (isCorrect) {
-                            setScore(score + 15)
-                            setStreak(streak + 1)
-                            if (currentChallengeIndex < currentRegion.challenges.length - 1) {
-                              setCurrentChallengeIndex(currentChallengeIndex + 1)
-                            } else if (currentRegionIndex < selectedGame.regions.length - 1) {
-                              setCurrentRegionIndex(currentRegionIndex + 1)
-                              setCurrentChallengeIndex(0)
-                            } else {
-                              setGameState("completed")
-                            }
-                          } else {
-                            setStreak(0)
-                            setLives(Math.max(0, lives - 1))
-                            if (lives <= 1) setGameState("completed")
-                          }
-                        }}
-                      >
-                        {option}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {currentChallenge?.options.map((option: string, index: number) => (
+                  <Button
+                    key={index}
+                    variant="outline"
+                    className="h-auto p-4 text-left bg-transparent hover:bg-blue-50"
+                    onClick={() => {
+                      const isCorrect = option.toLowerCase() === currentChallenge.answer.toLowerCase()
+                      if (isCorrect) {
+                        setScore(score + 10)
+                        setStreak(streak + 1)
+                        if (currentChallengeIndex < currentRegion.challenges.length - 1) {
+                          setCurrentChallengeIndex(currentChallengeIndex + 1)
+                        } else if (currentRegionIndex < selectedGame.regions.length - 1) {
+                          setCurrentRegionIndex(currentRegionIndex + 1)
+                          setCurrentChallengeIndex(0)
+                        } else {
+                          setGameState("completed")
+                        }
+                      } else {
+                        setStreak(0)
+                        setLives(Math.max(0, lives - 1))
+                        if (lives <= 1) {
+                          setGameState("completed")
+                        }
+                      }
+                    }}
+                  >
+                    {option}
+                  </Button>
+                ))}
+              </div>
             </div>
 
             <div className="flex justify-between">
               <Button variant="outline" onClick={resetGame}>
-                Exit Quest
+                End Exploration
               </Button>
               <Button
                 onClick={() => {
@@ -1226,7 +1249,7 @@ export default function AdvancedGames() {
                 variant="secondary"
                 disabled={currentChallengeIndex >= currentRegion.challenges.length - 1}
               >
-                Skip Challenge
+                Next Challenge
               </Button>
             </div>
           </CardContent>
@@ -1249,8 +1272,7 @@ export default function AdvancedGames() {
                 <div>
                   <CardTitle>{selectedGame.title}</CardTitle>
                   <CardDescription>
-                    {currentChallenge?.level} - Challenge {currentChallengeIndex + 1} of{" "}
-                    {selectedGame.challenges?.length}
+                    Challenge {currentChallengeIndex + 1} of {selectedGame.challenges?.length}
                   </CardDescription>
                 </div>
               </div>
@@ -1271,53 +1293,44 @@ export default function AdvancedGames() {
 
             <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-8 mb-6">
               <div className="text-center mb-6">
-                <h3 className="text-2xl font-bold mb-2 text-gray-800">{currentChallenge?.task}</h3>
-                <p className="text-lg text-indigo-700 mb-4">Level: {currentChallenge?.level}</p>
+                <h3 className="text-2xl font-bold mb-2 text-gray-800">{currentChallenge?.title}</h3>
+                <p className="text-gray-600 mb-4">{currentChallenge?.description}</p>
               </div>
 
-              {currentChallenge && (
-                <div className="space-y-4">
-                  <div className="bg-gray-900 rounded-lg p-4 text-green-400 font-mono text-sm overflow-x-auto">
-                    <pre>{currentChallenge.code}</pre>
-                  </div>
-
-                  <div className="bg-white rounded-lg p-6 shadow-sm">
-                    <h4 className="text-xl font-semibold mb-4 text-center">{currentChallenge.question}</h4>
-                    <div className="grid grid-cols-1 gap-3">
-                      {currentChallenge.options?.map((option: string, index: number) => (
-                        <Button
-                          key={index}
-                          variant="outline"
-                          className="h-auto p-4 text-left bg-transparent hover:bg-indigo-50"
-                          onClick={() => {
-                            const isCorrect = option.toLowerCase() === currentChallenge.answer.toLowerCase()
-                            if (isCorrect) {
-                              setScore(score + 25)
-                              setStreak(streak + 1)
-                              if (currentChallengeIndex < selectedGame.challenges.length - 1) {
-                                setCurrentChallengeIndex(currentChallengeIndex + 1)
-                              } else {
-                                setGameState("completed")
-                              }
-                            } else {
-                              setStreak(0)
-                              setLives(Math.max(0, lives - 1))
-                              if (lives <= 1) setGameState("completed")
-                            }
-                          }}
-                        >
-                          {option}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {currentChallenge?.options.map((option: string, index: number) => (
+                  <Button
+                    key={index}
+                    variant="outline"
+                    className="h-auto p-4 text-left bg-transparent hover:bg-indigo-50"
+                    onClick={() => {
+                      const isCorrect = option.toLowerCase() === currentChallenge.answer.toLowerCase()
+                      if (isCorrect) {
+                        setScore(score + 10)
+                        setStreak(streak + 1)
+                        if (currentChallengeIndex < selectedGame.challenges.length - 1) {
+                          setCurrentChallengeIndex(currentChallengeIndex + 1)
+                        } else {
+                          setGameState("completed")
+                        }
+                      } else {
+                        setStreak(0)
+                        setLives(Math.max(0, lives - 1))
+                        if (lives <= 1) {
+                          setGameState("completed")
+                        }
+                      }
+                    }}
+                  >
+                    {option}
+                  </Button>
+                ))}
+              </div>
             </div>
 
             <div className="flex justify-between">
               <Button variant="outline" onClick={resetGame}>
-                Exit Challenge
+                End Challenge
               </Button>
               <Button
                 onClick={() => {
@@ -1328,7 +1341,82 @@ export default function AdvancedGames() {
                 variant="secondary"
                 disabled={currentChallengeIndex >= selectedGame.challenges.length - 1}
               >
-                Skip Challenge
+                Next Challenge
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (gameState === "playing" && spinResult) {
+    return (
+      <div className="max-w-4xl mx-auto p-4">
+        <Card className="mb-6">
+          <CardHeader>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center space-x-3">
+                <span className="text-3xl">🎡</span>
+                <div>
+                  <CardTitle className="text-lg sm:text-xl">Spin Wheel Challenge</CardTitle>
+                  <CardDescription>Answer the random question!</CardDescription>
+                </div>
+              </div>
+              <div className="flex items-center space-x-4">
+                <div className="text-center">
+                  <div className="text-xl sm:text-2xl font-bold text-green-600">{score}</div>
+                  <div className="text-xs text-gray-500">Score</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xl sm:text-2xl font-bold text-blue-600">{streak}</div>
+                  <div className="text-xs text-gray-500">Streak</div>
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+                        <div className="mb-4">
+              <Progress value={50} className="h-2" /> {/* Static progress for demo */}
+            </div>
+
+            <div className="bg-gradient-to-r from-gray-500 to-gray-700 rounded-lg p-6 sm:p-8 mb-6 text-white">
+              <div className="text-center mb-6">
+                <Badge variant="secondary" className="mb-2">
+                  {spinResult.section.subject}
+                </Badge>
+                <h3 className="text-xl sm:text-2xl font-bold mb-4">{spinResult.question.question}</h3>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {spinResult.question.options?.map((option: string, index: number) => (
+                  <Button
+                    key={index}
+                    variant="secondary"
+                    className="h-auto p-4 text-left bg-white/20 hover:bg-white/30 text-white border-white/30"
+                    onClick={() => handleSpinWheelAnswer(option, spinResult.question, false)}
+                    disabled={isAnswering}
+                  >
+                    <span className="font-medium">{String.fromCharCode(65 + index)}.</span>
+                    <span className="ml-2">{option}</span>
+                  </Button>
+                ))}
+              </div>
+
+              {isAnswering && (
+                <div className="text-center mt-4">
+                  <Loader2 className="h-6 w-6 animate-spin mx-auto text-white" />
+                  <p className="text-sm mt-2">Checking answer...</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+              <Button variant="outline" onClick={() => setSpinResult(null)}>
+                Back to Spin
+              </Button>
+              <Button variant="outline" onClick={handleSpin} disabled={isSpinning}>
+                Spin Again {isSpinning && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
               </Button>
             </div>
           </CardContent>
@@ -1338,45 +1426,17 @@ export default function AdvancedGames() {
   }
 
   if (gameState === "completed") {
-    const finalTime = gameStartTime ? Math.floor((new Date().getTime() - gameStartTime.getTime()) / 1000) : 0
-    const minutes = Math.floor(finalTime / 60)
-    const seconds = finalTime % 60
-
     return (
       <div className="max-w-4xl mx-auto p-4">
         <Card className="text-center p-8">
           <CardContent>
-            <Trophy className="h-16 w-16 mx-auto mb-4 text-yellow-500" />
-            <h2 className="text-2xl sm:text-3xl font-bold mb-4">Game Complete!</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-              <div className="bg-green-50 p-4 rounded-lg">
-                <div className="text-2xl font-bold text-green-600">{score}</div>
-                <div className="text-sm text-gray-600">Final Score</div>
-              </div>
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <div className="text-2xl font-bold text-blue-600">{currentLevel}</div>
-                <div className="text-sm text-gray-600">Level Reached</div>
-              </div>
-              <div className="bg-purple-50 p-4 rounded-lg">
-                <div className="text-2xl font-bold text-purple-600">{streak}</div>
-                <div className="text-sm text-gray-600">Best Streak</div>
-              </div>
-              <div className="bg-orange-50 p-4 rounded-lg">
-                <div className="text-2xl font-bold text-orange-600">
-                  {minutes}:{seconds.toString().padStart(2, "0")}
-                </div>
-                <div className="text-sm text-gray-600">Time Played</div>
-              </div>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button onClick={() => handlePlayGame(selectedGame)} className="flex items-center space-x-2">
-                <Star className="h-4 w-4" />
-                <span>Play Again</span>
-              </Button>
-              <Button variant="outline" onClick={resetGame}>
-                Choose New Game
-              </Button>
-            </div>
+            <Trophy className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
+            <h3 className="text-2xl font-bold mb-2">Game Completed!</h3>
+            <p className="text-lg mb-4">Final Score: {score}</p>
+            <p className="text-md text-gray-600">Great job! You've mastered {selectedGame?.title}.</p>
+            <Button className="mt-4" onClick={resetGame}>
+              Play Again
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -1384,61 +1444,27 @@ export default function AdvancedGames() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-4">
-      <div className="text-center mb-8">
-        <h1 className="text-3xl sm:text-4xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-          Advanced Learning Games
-        </h1>
-        <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-          Challenge yourself with endless educational games that adapt to your level and never repeat questions!
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="max-w-4xl mx-auto p-4">
+      <h2 className="text-3xl font-bold mb-6 text-center">Advanced Learning Games</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {advancedGames.map((game) => (
-          <Card key={game.id} className="group hover:shadow-lg transition-all duration-300 cursor-pointer">
+          <Card
+            key={game.id}
+            className={`bg-gradient-to-br ${game.color} text-white cursor-pointer hover:opacity-90 transition-opacity`}
+            onClick={() => handlePlayGame(game)}
+          >
             <CardHeader>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-3xl group-hover:scale-110 transition-transform duration-300">{game.icon}</span>
-                <Badge variant="secondary" className="text-xs">
-                  {game.duration}
-                </Badge>
+              <div className="flex items-center space-x-3">
+                <span className="text-2xl">{game.icon}</span>
+                <CardTitle className="text-lg">{game.title}</CardTitle>
               </div>
-              <CardTitle className="text-lg group-hover:text-blue-600 transition-colors">{game.title}</CardTitle>
-              <CardDescription className="text-sm">{game.description}</CardDescription>
+              <CardDescription className="text-white/80">{game.description}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3 mb-4">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Subject:</span>
-                  <span className="font-medium">{game.subject}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Grade:</span>
-                  <span className="font-medium">{game.grade}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Difficulty:</span>
-                  <span className="font-medium">{game.difficulty}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Players:</span>
-                  <span className="font-medium">{game.players.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Rating:</span>
-                  <div className="flex items-center space-x-1">
-                    <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                    <span className="font-medium">{game.rating}</span>
-                  </div>
-                </div>
+              <div className="flex justify-between text-sm">
+                <span>Players: {game.players}</span>
+                <span>Rating: {game.rating}⭐</span>
               </div>
-              <Button
-                className={`w-full bg-gradient-to-r ${game.color} hover:opacity-90 transition-opacity`}
-                onClick={() => handlePlayGame(game)}
-              >
-                Start Endless Game
-              </Button>
             </CardContent>
           </Card>
         ))}
