@@ -714,6 +714,97 @@ export default function AdvancedGames() {
     )
   }
 
+  if (gameState === "playing" && currentQuestion && !spinResult) {
+    return (
+      <div className="max-w-4xl mx-auto p-4">
+        <Card className="mb-6">
+          <CardHeader>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center space-x-3">
+                <span className="text-3xl">{selectedGame.icon}</span>
+                <div>
+                  <CardTitle className="text-lg sm:text-xl">{selectedGame.title}</CardTitle>
+                  <CardDescription>Level {currentLevel} • Endless Mode</CardDescription>
+                </div>
+              </div>
+              <div className="flex items-center space-x-4">
+                <div className="text-center">
+                  <div className="text-xl sm:text-2xl font-bold text-green-600">{score}</div>
+                  <div className="text-xs text-gray-500">Score</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xl sm:text-2xl font-bold text-blue-600">{streak}</div>
+                  <div className="text-xs text-gray-500">Streak</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xl sm:text-2xl font-bold text-red-600">{lives}</div>
+                  <div className="text-xs text-gray-500">Lives</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xl sm:text-2xl font-bold text-orange-600">{timeLeft}</div>
+                  <div className="text-xs text-gray-500">Time</div>
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-4">
+              <Progress value={(timeLeft / Math.max(30, 60 - currentLevel * 2)) * 100} className="h-2" />
+            </div>
+
+            <div className={`bg-gradient-to-r ${selectedGame.color} rounded-lg p-6 sm:p-8 mb-6 text-white`}>
+              <div className="text-center mb-6">
+                <Badge variant="secondary" className="mb-2">
+                  Level {currentLevel}
+                </Badge>
+                <h3 className="text-xl sm:text-2xl font-bold mb-4">{currentQuestion.question}</h3>
+                {currentQuestion.explanation && <p className="text-sm opacity-90">{currentQuestion.explanation}</p>}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {currentQuestion.options?.map((option: string, index: number) => (
+                  <Button
+                    key={index}
+                    variant="secondary"
+                    className="h-auto p-4 text-left bg-white/20 hover:bg-white/30 text-white border-white/30"
+                    onClick={() => handleAnswerSubmit(option)}
+                    disabled={isAnswering}
+                  >
+                    <span className="font-medium">{String.fromCharCode(65 + index)}.</span>
+                    <span className="ml-2">{option}</span>
+                  </Button>
+                ))}
+              </div>
+
+              {isAnswering && (
+                <div className="text-center mt-4">
+                  <Loader2 className="h-6 w-6 animate-spin mx-auto text-white" />
+                  <p className="text-sm mt-2">Checking answer...</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+              <div className="flex items-center space-x-4">
+                <Badge variant="outline" className="flex items-center space-x-1">
+                  <Target className="h-3 w-3" />
+                  <span>Level {currentLevel}</span>
+                </Badge>
+                <Badge variant="outline" className="flex items-center space-x-1">
+                  <Zap className="h-3 w-3" />
+                  <span>{streak} Streak</span>
+                </Badge>
+              </div>
+              <Button variant="outline" onClick={resetGame}>
+                End Game
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   if (gameState === "playing" && selectedGame?.gameType === "speed" && currentQuestion) {
     return (
       <div className="max-w-4xl mx-auto p-4">
