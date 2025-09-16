@@ -135,7 +135,7 @@ export default function AdvancedGames() {
 
     setGameState("loading")
     try {
-      const response = await fetch("/api/games/endless", {
+      const response = await fetch("/app/api/games/endless", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
