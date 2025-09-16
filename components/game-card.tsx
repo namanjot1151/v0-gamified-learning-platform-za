@@ -236,19 +236,21 @@ export default function GameCard() {
               <h3 className="text-xl font-semibold mb-4">{currentQ.question}</h3>
 
               <div className="space-y-3">
-                {currentQ.options.map((option, index) => (
-                  <label key={index} className="flex items-center space-x-3 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="answer"
-                      value={index}
-                      checked={userAnswer === index.toString()}
-                      onChange={(e) => setUserAnswer(e.target.value)}
-                      className="w-4 h-4 text-blue-600"
-                    />
-                    <span className="text-lg">{option}</span>
-                  </label>
-                ))}
+                {currentQ.options.map((option: string, index: number) => (
+  <label key={index} className="flex items-center space-x-3 cursor-pointer">
+    <input
+      type="radio"
+      name="answer"
+      value={index}
+      checked={userAnswer === index.toString()}
+      onChange={(e) => setUserAnswer(e.target.value)}
+      className="w-4 h-4 text-blue-600"
+    />
+    <span className="text-lg">{option}</span>
+  </label>
+))}
+
+               
               </div>
             </div>
 
