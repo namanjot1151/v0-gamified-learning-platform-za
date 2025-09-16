@@ -127,25 +127,52 @@ async function retryWithBackoff<T>(fn: () => Promise<T>, maxRetries = 3, baseDel
 
   throw lastError!
 }
+// Base type for all fallback questions
+type FallbackQuestion = {
+  question: string
+  answer: string
+  options: string[]
+  explanation?: string
+  difficulty: number
+  // Optional fields to support other game types
+  task?: string
+  code_example?: string
+  clue?: string
+  era?: string
+  context?: string
+  region?: string
+  fact?: string
+  word?: string
+  scrambled?: string
+  hint?: string
+  type?: string
+}
+
 
 function getFallbackQuestion(gameType: string, subject: string, level: number) {
   const gameQuestions = fallbackQuestions[gameType as keyof typeof fallbackQuestions]
   if (!gameQuestions) return null
 
-  const subjectQuestions = gameQuestions[subject as keyof typeof gameQuestions] || Object.values(gameQuestions)[0]
+  let subjectQuestions = gameQuestions[subject as keyof typeof gameQuestions] as FallbackQuestion[]
+
+  if (!Array.isArray(subjectQuestions)) {
+    const fallbackSubjectKey = Object.keys(gameQuestions)[0] as keyof typeof gameQuestions
+    subjectQuestions = gameQuestions[fallbackSubjectKey] as FallbackQuestion[]
+  }
+
   if (!Array.isArray(subjectQuestions)) return null
 
-  // Get question based on level (cycle through available questions)
   const questionIndex = (level - 1) % subjectQuestions.length
   const baseQuestion = subjectQuestions[questionIndex]
 
-  // Modify difficulty based on level
   return {
     ...baseQuestion,
     difficulty: Math.max(baseQuestion.difficulty, Math.ceil(level / 3)),
     question: baseQuestion.question || `Level ${level} ${subject} challenge`,
   }
 }
+
+
 
 export async function POST(request: NextRequest) {
   try {
